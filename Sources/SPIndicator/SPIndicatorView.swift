@@ -71,8 +71,9 @@ open class SPIndicatorView: UIView {
     open var titleLabel: UILabel?
     open var subtitleLabel: UILabel?
     open var iconView: UIView?
+    open var cornerRadiusValue: CGFloat?
     
-    private lazy var backgroundView: UIVisualEffectView = {
+    open lazy var backgroundView: UIVisualEffectView = {
         let view: UIVisualEffectView = {
             if #available(iOS 13.0, *) {
                 return UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
@@ -388,9 +389,9 @@ open class SPIndicatorView: UIView {
      */
     open var offset: CGFloat = 0
     
-    private var areaHeight: CGFloat = 50
-    private var minimumAreaWidth: CGFloat = 196
-    private var maximumAreaWidth: CGFloat = 260
+    open var areaHeight: CGFloat = 50
+    open var minimumAreaWidth: CGFloat = 196
+    open var maximumAreaWidth: CGFloat = 260
     private var titleAreaFactor: CGFloat = 2.5
     private var spaceBetweenTitles: CGFloat = 1
     private var spaceBetweenTitlesAndImage: CGFloat = 16
@@ -430,7 +431,7 @@ open class SPIndicatorView: UIView {
         super.layoutSubviews()
         
         layoutMargins = layout.margins
-        layer.cornerRadius = frame.height / 2
+        layer.cornerRadius = cornerRadiusValue ?? (frame.height / 2)
         backgroundView.frame = bounds
         backgroundView.layer.cornerRadius = layer.cornerRadius
         
