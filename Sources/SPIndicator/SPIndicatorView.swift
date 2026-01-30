@@ -39,12 +39,12 @@ import UIKit
 open class SPIndicatorView: UIView {
     
     // MARK: - Custom Properties
-    var textAligment: NSTextAlignment = .left
-    var horizontalPadding: CGFloat = 16
-    var spaceBetweenIconAndTitle: CGFloat = 16
-    var minPopupWidth: CGFloat = 140
-    var minPopupHeight: CGFloat = 60
-    var verticalPadding: CGFloat = 12
+    open var textAligment: NSTextAlignment = .left
+    open var horizontalPadding: CGFloat = 18
+    open var spaceBetweenIconAndTitle: CGFloat = 12
+    open var minPopupWidth: CGFloat = 140
+    open var minPopupHeight: CGFloat = 60
+    open var verticalPadding: CGFloat = 12
     
     var maxPopupWidth: CGFloat {
         UIScreen.main.bounds.width - 40
