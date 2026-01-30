@@ -38,6 +38,18 @@ import UIKit
 @available(iOSApplicationExtension, unavailable)
 open class SPIndicatorView: UIView {
     
+    // MARK: - Custom Properties
+    var textAligment: NSTextAlignment = .left
+    var horizontalPadding: CGFloat = 16
+    var spaceBetweenIconAndTitle: CGFloat = 16
+    var minPopupWidth: CGFloat = 140
+    var minPopupHeight: CGFloat = 60
+    var verticalPadding: CGFloat = 12
+    
+    var maxPopupWidth: CGFloat {
+        UIScreen.main.bounds.width - 40
+    }
+    
     // MARK: - UIAppearance
 
     @objc dynamic open var duration: TimeInterval = 1.5
@@ -415,16 +427,97 @@ open class SPIndicatorView: UIView {
     }
     
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        titleLabel?.sizeToFit()
-        let titleWidth: CGFloat = titleLabel?.frame.width ?? 0
-        subtitleLabel?.sizeToFit()
-        let subtitleWidth: CGFloat = subtitleLabel?.frame.width ?? 0
-        var width = (max(titleWidth, subtitleWidth) * titleAreaFactor).rounded()
+        guard let titleText = titleLabel?.text, let titleFont = titleLabel?.font else {
+            return CGSize(width: minPopupWidth, height: minPopupHeight)
+        }
         
-        if width < minimumAreaWidth { width = minimumAreaWidth }
-        if width > maximumAreaWidth { width = maximumAreaWidth }
+        let hasIcon = (iconView != nil)
+        let maxTextWidth: CGFloat
+        if hasIcon {
+            maxTextWidth = maxPopupWidth - horizontalPadding - layout.iconSize.width - spaceBetweenIconAndTitle - horizontalPadding
+        } else {
+            maxTextWidth = maxPopupWidth - horizontalPadding - horizontalPadding
+        }
         
-        return .init(width: width, height: areaHeight)
+        let singleLineTitleSize = titleText.boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: titleFont],
+            context: nil
+        ).size
+        let singleLineTitleWidth = ceil(singleLineTitleSize.width)
+        
+        let finalWidth: CGFloat
+        if singleLineTitleWidth > maxTextWidth {
+            let minTextWidth = findMinWidthForTwoLines(text: titleText, font: titleFont)
+            let clampedTextWidth = min(minTextWidth, maxTextWidth)
+            let horizontalContent: CGFloat
+            if hasIcon {
+                horizontalContent = horizontalPadding + layout.iconSize.width + spaceBetweenIconAndTitle + clampedTextWidth + horizontalPadding
+            } else {
+                horizontalContent = horizontalPadding + clampedTextWidth + horizontalPadding
+            }
+            finalWidth = max(minPopupWidth, min(maxPopupWidth, horizontalContent.rounded()))
+            
+        } else {
+            let horizontalContent: CGFloat
+            if hasIcon {
+                horizontalContent = horizontalPadding + layout.iconSize.width + spaceBetweenIconAndTitle + singleLineTitleWidth + horizontalPadding
+            } else {
+                horizontalContent = horizontalPadding + singleLineTitleWidth + horizontalPadding
+            }
+            finalWidth = max(minPopupWidth, min(maxPopupWidth, horizontalContent.rounded()))
+        }
+        
+        return CGSize(width: finalWidth, height: minPopupHeight)
+    }
+    
+    private func findMinWidthForTwoLines(text: String, font: UIFont) -> CGFloat {
+        let lineHeight = font.lineHeight
+        let maxHeightForTwoLines = lineHeight * 2 + 2
+        
+        let singleLineWidth = text.boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).size.width
+        
+        let longestWordWidth = text.components(separatedBy: .whitespaces)
+            .map { word in
+                (word as NSString).size(withAttributes: [.font: font]).width
+            }
+            .max() ?? singleLineWidth
+        
+        var low: CGFloat = ceil(longestWordWidth)
+        var high: CGFloat = ceil(singleLineWidth)
+        
+        guard low < high else { return ceil(high) }
+        
+        while high - low > 1 {
+            let mid = (low + high) / 2
+            let size = text.boundingRect(
+                with: CGSize(width: mid, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font],
+                context: nil
+            ).size
+            
+            if ceil(size.height) <= maxHeightForTwoLines {
+                high = mid
+            } else {
+                low = mid
+            }
+        }
+        
+        let lowHeight = text.boundingRect(
+            with: CGSize(width: low, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).size.height
+        
+        return ceil(lowHeight) <= maxHeightForTwoLines ? ceil(low) : ceil(high)
     }
     
     open override func layoutSubviews() {
@@ -570,6 +663,48 @@ open class SPIndicatorView: UIView {
         }
         
         layoutTitleSubtitleByVertical()
+        
+        guard let titleLabel = titleLabel else { return }
+        let labelX: CGFloat
+        if let iconView = iconView {
+            labelX = iconView.frame.maxX + spaceBetweenIconAndTitle
+        } else {
+            labelX = horizontalPadding
+        }
+        
+        let availableWidth = bounds.width - labelX - horizontalPadding
+        titleLabel.numberOfLines = 2
+        titleLabel.lineBreakMode = .byWordWrapping
+        titleLabel.textAlignment = textAligment
+        titleLabel.frame = CGRect(
+            x: labelX,
+            y: 0,
+            width: availableWidth,
+            height: bounds.height - verticalPadding * 2
+        )
+        titleLabel.sizeToFit()
+        titleLabel.frame.size.width = availableWidth
+        
+        if let subtitleLabel = subtitleLabel {
+            subtitleLabel.numberOfLines = 2
+            subtitleLabel.lineBreakMode = .byWordWrapping
+            subtitleLabel.textAlignment = textAligment
+            subtitleLabel.frame = CGRect(
+                x: labelX,
+                y: 0,
+                width: availableWidth,
+                height: 20
+            )
+            subtitleLabel.sizeToFit()
+            subtitleLabel.frame.size.width = availableWidth
+            
+            let totalHeight = titleLabel.frame.height + 2 + subtitleLabel.frame.height
+            titleLabel.frame.origin.y = (bounds.height - totalHeight) / 2
+            subtitleLabel.frame.origin.y = titleLabel.frame.maxY + 2
+            
+        } else {
+            titleLabel.center.y = bounds.midY
+        }
     }
     
     // MARK: - Models
