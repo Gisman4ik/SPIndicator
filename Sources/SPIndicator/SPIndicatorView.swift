@@ -114,8 +114,6 @@ open class SPIndicatorView: UIView {
     
     public init(title: String, message: String?) {
         super.init(frame: CGRect.zero)
-        titleAreaFactor = 1.8
-        minimumAreaWidth = 100
         commonInit()
         layout = SPIndicatorLayout.message()
         setTitle(title)
@@ -401,31 +399,6 @@ open class SPIndicatorView: UIView {
      */
     open var offset: CGFloat = 0
     
-    open var areaHeight: CGFloat = 50
-    open var minimumAreaWidth: CGFloat = 196
-    open var maximumAreaWidth: CGFloat = 260
-    private var titleAreaFactor: CGFloat = 2.5
-    private var spaceBetweenTitles: CGFloat = 1
-    private var spaceBetweenTitlesAndImage: CGFloat = 16
-    
-    private var titlesCompactWidth: CGFloat {
-        if let iconView = self.iconView {
-            let space = iconView.frame.maxY + spaceBetweenTitlesAndImage
-            return frame.width - space * 2
-        } else {
-            return frame.width - layoutMargins.left - layoutMargins.right
-        }
-    }
-    
-    private var titlesFullWidth: CGFloat {
-        if let iconView = self.iconView {
-            let space = iconView.frame.maxY + spaceBetweenTitlesAndImage
-            return frame.width - space - layoutMargins.right - self.spaceBetweenTitlesAndImage
-        } else {
-            return frame.width - layoutMargins.left - layoutMargins.right
-        }
-    }
-    
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         guard let titleText = titleLabel?.text, let titleFont = titleLabel?.font else {
             return CGSize(width: minPopupWidth, height: minPopupHeight)
@@ -528,143 +501,18 @@ open class SPIndicatorView: UIView {
         backgroundView.frame = bounds
         backgroundView.layer.cornerRadius = layer.cornerRadius
         
-        // Flags
-        
-        let hasIcon = (self.iconView != nil)
-        let hasTitle = (self.titleLabel != nil)
-        let hasSubtite = (self.subtitleLabel != nil)
-        
-        let fitTitleToCompact: Bool = {
-            guard let titleLabel = self.titleLabel else { return true }
-            titleLabel.numberOfLines = 1
-            titleLabel.sizeToFit()
-            return titleLabel.frame.width < titlesCompactWidth
-        }()
-        
-        let fitSubtitleToCompact: Bool = {
-            guard let subtitleLabel = self.subtitleLabel else { return true }
-            subtitleLabel.numberOfLines = 1
-            subtitleLabel.sizeToFit()
-            return subtitleLabel.frame.width < titlesCompactWidth
-        }()
-        
-        let notFitAnyLabelToCompact: Bool = {
-            if !fitTitleToCompact { return true }
-            if !fitSubtitleToCompact { return true }
-            return false
-        }()
-        
-        var layout: LayoutGrid = .iconTitleCentered
-        
-        if (hasIcon && hasTitle && hasSubtite) && !notFitAnyLabelToCompact {
-            layout = .iconTitleMessageCentered
-        }
-        
-        if (hasIcon && hasTitle && hasSubtite) && notFitAnyLabelToCompact {
-            layout = .iconTitleMessageLeading
-        }
-        
-        if (hasIcon && hasTitle && !hasSubtite) {
-            layout = .iconTitleCentered
-        }
-        
-        if (!hasIcon && hasTitle && !hasSubtite) {
-            layout = .title
-        }
-        
-        if (!hasIcon && hasTitle && hasSubtite) {
-            layout = .titleMessage
-        }
-        
-        // Actions
-        
-        let layoutIcon = { [weak self] in
-            guard let self = self else { return }
-            guard let iconView = self.iconView else { return }
-            iconView.frame = .init(
-                origin: .init(x: self.layoutMargins.left, y: iconView.frame.origin.y),
-                size: self.layout.iconSize
+        // Layout icon
+        if let iconView = iconView {
+            iconView.frame = CGRect(
+                origin: CGPoint(x: horizontalPadding, y: 0),
+                size: layout.iconSize
             )
-            iconView.center.y = self.bounds.midY
+            iconView.center.y = bounds.midY
         }
         
-        let layoutTitleCenteredCompact = { [weak self] in
-            guard let self = self else { return }
-            guard let titleLabel = self.titleLabel else { return }
-            titleLabel.textAlignment = .center
-            titleLabel.layoutDynamicHeight(width: self.titlesCompactWidth)
-            titleLabel.center.x = self.frame.width / 2
-        }
-        
-        let layoutTitleCenteredFullWidth = { [weak self] in
-            guard let self = self else { return }
-            guard let titleLabel = self.titleLabel else { return }
-            titleLabel.textAlignment = .center
-            titleLabel.layoutDynamicHeight(width: self.titlesFullWidth)
-            titleLabel.center.x = self.frame.width / 2
-        }
-        
-        let layoutTitleLeadingFullWidth = { [weak self] in
-            guard let self = self else { return }
-            guard let titleLabel = self.titleLabel else { return }
-            guard let iconView = self.iconView else { return }
-            let rtl = self.effectiveUserInterfaceLayoutDirection == .rightToLeft
-            titleLabel.textAlignment = rtl ? .right : .left
-            titleLabel.layoutDynamicHeight(width: self.titlesFullWidth)
-            titleLabel.frame.origin.x = self.layoutMargins.left + iconView.frame.width + self.spaceBetweenTitlesAndImage
-        }
-        
-        let layoutSubtitle = { [weak self] in
-            guard let self = self else { return }
-            guard let titleLabel = self.titleLabel else { return }
-            guard let subtitleLabel = self.subtitleLabel else { return }
-            subtitleLabel.textAlignment = titleLabel.textAlignment
-            subtitleLabel.layoutDynamicHeight(width: titleLabel.frame.width)
-            subtitleLabel.frame.origin.x = titleLabel.frame.origin.x
-        }
-        
-        let layoutTitleSubtitleByVertical = { [weak self] in
-            guard let self = self else { return }
-            guard let titleLabel = self.titleLabel else { return }
-            guard let subtitleLabel = self.subtitleLabel else {
-                titleLabel.center.y = self.bounds.midY
-                return
-            }
-            let allHeight = titleLabel.frame.height + subtitleLabel.frame.height + self.spaceBetweenTitles
-            titleLabel.frame.origin.y = (self.frame.height - allHeight) / 2
-            subtitleLabel.frame.origin.y = titleLabel.frame.maxY + self.spaceBetweenTitles
-        }
-        
-        // Apply
-        
-        switch layout {
-        case .iconTitleMessageCentered:
-            layoutIcon()
-            layoutTitleCenteredCompact()
-            layoutSubtitle()
-        case .iconTitleMessageLeading:
-            layoutIcon()
-            layoutTitleLeadingFullWidth()
-            layoutSubtitle()
-        case .iconTitleCentered:
-            layoutIcon()
-            titleLabel?.numberOfLines = 2
-            layoutTitleCenteredCompact()
-        case .iconTitleLeading:
-            layoutIcon()
-            titleLabel?.numberOfLines = 2
-            layoutTitleLeadingFullWidth()
-        case .title:
-            titleLabel?.numberOfLines = 2
-            layoutTitleCenteredFullWidth()
-        case .titleMessage:
-            layoutTitleCenteredFullWidth()
-            layoutSubtitle()
-        }
-        
-        layoutTitleSubtitleByVertical()
-        
+        // Layout labels
         guard let titleLabel = titleLabel else { return }
+        
         let labelX: CGFloat
         if let iconView = iconView {
             labelX = iconView.frame.maxX + spaceBetweenIconAndTitle
@@ -701,7 +549,6 @@ open class SPIndicatorView: UIView {
             let totalHeight = titleLabel.frame.height + 2 + subtitleLabel.frame.height
             titleLabel.frame.origin.y = (bounds.height - totalHeight) / 2
             subtitleLabel.frame.origin.y = titleLabel.frame.maxY + 2
-            
         } else {
             titleLabel.center.y = bounds.midY
         }
@@ -714,16 +561,6 @@ open class SPIndicatorView: UIView {
         case prepare(_ from: SPIndicatorPresentSide)
         case visible(_ from: SPIndicatorPresentSide)
         case fromVisible(_ translation: CGFloat, from: SPIndicatorPresentSide)
-    }
-    
-    enum LayoutGrid {
-        
-        case iconTitleMessageCentered
-        case iconTitleMessageLeading
-        case iconTitleCentered
-        case iconTitleLeading
-        case title
-        case titleMessage
     }
 }
 
