@@ -412,37 +412,62 @@ open class SPIndicatorView: UIView {
             maxTextWidth = maxPopupWidth - horizontalPadding - horizontalPadding
         }
         
-        let singleLineTitleSize = titleText.boundingRect(
-            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: titleFont],
-            context: nil
-        ).size
-        let singleLineTitleWidth = ceil(singleLineTitleSize.width)
+        let titleTextWidth = requiredTextWidth(text: titleText, font: titleFont, maxTextWidth: maxTextWidth)
         
-        let finalWidth: CGFloat
-        if singleLineTitleWidth > maxTextWidth {
-            let minTextWidth = findMinWidthForTwoLines(text: titleText, font: titleFont)
-            let clampedTextWidth = min(minTextWidth, maxTextWidth)
-            let horizontalContent: CGFloat
-            if hasIcon {
-                horizontalContent = horizontalPadding + layout.iconSize.width + spaceBetweenIconAndTitle + clampedTextWidth + horizontalPadding
-            } else {
-                horizontalContent = horizontalPadding + clampedTextWidth + horizontalPadding
-            }
-            finalWidth = max(minPopupWidth, min(maxPopupWidth, horizontalContent.rounded()))
-            
-        } else {
-            let horizontalContent: CGFloat
-            if hasIcon {
-                horizontalContent = horizontalPadding + layout.iconSize.width + spaceBetweenIconAndTitle + singleLineTitleWidth + horizontalPadding
-            } else {
-                horizontalContent = horizontalPadding + singleLineTitleWidth + horizontalPadding
-            }
-            finalWidth = max(minPopupWidth, min(maxPopupWidth, horizontalContent.rounded()))
+        var requiredTextWidthValue = titleTextWidth
+        if let subtitleText = subtitleLabel?.text, let subtitleFont = subtitleLabel?.font {
+            let subtitleTextWidth = requiredTextWidth(text: subtitleText, font: subtitleFont, maxTextWidth: maxTextWidth)
+            requiredTextWidthValue = max(titleTextWidth, subtitleTextWidth)
         }
         
-        return CGSize(width: finalWidth, height: minPopupHeight)
+        let horizontalContent: CGFloat
+        if hasIcon {
+            horizontalContent = horizontalPadding + layout.iconSize.width + spaceBetweenIconAndTitle + requiredTextWidthValue + horizontalPadding
+        } else {
+            horizontalContent = horizontalPadding + requiredTextWidthValue + horizontalPadding
+        }
+        let finalWidth = max(minPopupWidth, min(maxPopupWidth, horizontalContent.rounded()))
+        
+        let finalHeight: CGFloat
+        if let subtitleFont = subtitleLabel?.font {
+            let titleHeight = textHeight(text: titleText, font: titleFont, width: requiredTextWidthValue)
+            let subtitleText = subtitleLabel?.text ?? ""
+            let subtitleHeight = textHeight(text: subtitleText, font: subtitleFont, width: requiredTextWidthValue)
+            let contentHeight = titleHeight + 2 + subtitleHeight
+            let totalHeight = verticalPadding + contentHeight + verticalPadding
+            finalHeight = max(minPopupHeight, totalHeight.rounded())
+        } else {
+            finalHeight = minPopupHeight
+        }
+        
+        return CGSize(width: finalWidth, height: finalHeight)
+    }
+    
+    private func textHeight(text: String, font: UIFont, width: CGFloat) -> CGFloat {
+        let maxHeightForTwoLines = font.lineHeight * 2 + 2
+        let size = text.boundingRect(
+            with: CGSize(width: width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).size
+        return min(ceil(size.height), maxHeightForTwoLines)
+    }
+    
+    private func requiredTextWidth(text: String, font: UIFont, maxTextWidth: CGFloat) -> CGFloat {
+        let singleLineSize = text.boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).size
+        let singleLineWidth = ceil(singleLineSize.width)
+        
+        if singleLineWidth > maxTextWidth {
+            return min(findMinWidthForTwoLines(text: text, font: font), maxTextWidth)
+        } else {
+            return singleLineWidth
+        }
     }
     
     private func findMinWidthForTwoLines(text: String, font: UIFont) -> CGFloat {
